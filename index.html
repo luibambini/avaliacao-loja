@@ -217,14 +217,22 @@
      * ESTADO DA AVALIAÇÃO
      * ========================= */
     let currentStep = 1;
+        const ratingFields = [
+      'avaliacaoGeral',
+      'qualidadeServico',
+      'simpatiaEquipe',
+      'tempoResposta',
+      'avaliacaoLoja'
+    ];
+    
     let evaluationData = {
       vendedora: null,
       comoConheceu: null,
-      avaliacaoGeral: 1,
-      qualidadeServico: 1,
-      simpatiaEquipe: 1,
-      tempoResposta: 1,
-      avaliacaoLoja: 1,
+      avaliacaoGeral: null,
+      qualidadeServico: null,
+      simpatiaEquipe: null,
+      tempoResposta: null,
+      avaliacaoLoja: null,
       comentarios: '',
       observacoes: ''
     };
@@ -295,8 +303,19 @@
         nextBtn.onclick = nextStep;
       }
     }
+    function hasAllRatings() {
+      return ratingFields.every(key => typeof evaluationData[key] === 'number' && evaluationData[key] >= 1);
+    }
 
+
+    
     function nextStep() {
+            if (currentStep === 3 && !hasAllRatings()) {
+        alert('Por favor, selecione uma quantidade de estrelas para todas as avaliações.');
+        return;
+      }
+
+
       if (currentStep === 4) {
         const comentarios = document.getElementById('comentarios');
         const observacoes = document.getElementById('observacoes');
@@ -364,7 +383,9 @@
           <div class="rating-section">
             <label class="rating-label">${r.label}</label>
             <div class="stars" data-rating="${r.key}">
-              ${[1,2,3,4,5].map(i => `<span class="star" data-value="${i}" onclick="__setRating('${r.key}', ${i})">★</span>`).join('')}
+              ${[1,2,3,4,5]
+                .map(i => `<span class="star${currentValue >= i ? ' active' : ''}" data-value="${i}" onclick="__setRating('${r.key}', ${i})">★</span>`)
+                .join('')}
             </div>
           </div>
         `;
@@ -415,8 +436,8 @@
      * SUBMISSÃO (SUPABASE)
      * ========================= */
     async function submitEvaluation() {
-      if (!evaluationData.avaliacaoGeral) {
-        alert('Por favor, informe a Avaliação Geral (★).');
+      if (!hasAllRatings()) {
+        alert('Por favor, selecione uma quantidade de estrelas para todas as avaliações.');
         return;
       }
 
@@ -453,11 +474,11 @@
       evaluationData = {
         vendedora: null,
         comoConheceu: null,
-        avaliacaoGeral: 1,
-        qualidadeServico: 1,
-        simpatiaEquipe: 1,
-        tempoResposta: 1,
-        avaliacaoLoja: 1,
+        avaliacaoGeral: null,
+        qualidadeServico: null,
+        simpatiaEquipe: null,
+        tempoResposta: null,
+        avaliacaoLoja: null,
         comentarios: '',
         observacoes: ''
       };
