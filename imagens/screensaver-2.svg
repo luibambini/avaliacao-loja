@@ -6,6 +6,6 @@
     </linearGradient>
   </defs>
   <rect width="800" height="600" fill="url(#gradient2)" />
-  <text x="50%" y="40%" font-family="'Segoe UI', sans-serif" font-size="60" fill="#ffffff" text-anchor="middle">Promoções do dia</text>
+  <text x="50%" y="40%" font-family="'Segoe UI', sans-serif" font-size="60" fill="#ffffff" text-anchor="middle">Todo Dia Muitas Novidades</text>
   <text x="50%" y="58%" font-family="'Segoe UI', sans-serif" font-size="30" fill="#ffffff" text-anchor="middle">Consulte nossas vendedoras para saber mais</text>
 </svg>
