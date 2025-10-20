@@ -193,12 +193,26 @@
       border-radius:20px;
       object-fit:contain;
       box-shadow:0 20px 50px rgba(0,0,0,.4);
+            border:4px solid rgba(255,255,255,.2);
+    }
+    .screensaver .screensaver-caption{
+      margin-top:25px;
+      font-size:1.8em;
+      font-weight:600;
+      letter-spacing:.03em;
+      text-shadow:0 3px 8px rgba(0,0,0,.6);
+
     }
     .screensaver .screensaver-text{
-      margin-top:30px;
-      font-size:1.4em;
+      margin-top:18px;
+      font-size:1.5em;
       line-height:1.5;
-      max-width:700px;
+      max-width:720px;
+      background:rgba(0,0,0,.4);
+      padding:18px 26px;
+      border-radius:14px;
+      font-weight:600;
+      box-shadow:0 10px 25px rgba(0,0,0,.35);
     }
 
     /* Responsivo para iPad - forçar 2x2 */
@@ -246,7 +260,8 @@
   <button class="admin-btn" onclick="toggleAdmin()">Admin</button>
   <div id="screensaver" class="screensaver">
     <img id="screensaver-image" alt="Apresentação da loja" />
-    <div class="screensaver-text">Toque na tela para iniciar uma nova avaliação</div>
+    <div class="screensaver-caption" id="screensaver-caption"></div>
+    <div class="screensaver-text">Toque na tela para fazer sua avaliação agora ✨</div>
   </div>
 
 
@@ -299,8 +314,28 @@
           <p><strong>Média Geral:</strong> <span id="average-rating">0</span> estrelas</p>
         </div>
 
-        <div id="evaluations-list" style="text-align: left; max-height: 400px; overflow-y: auto;">
+      <div id="evaluations-list" style="text-align: left; max-height: 400px; overflow-y: auto;">
           </div>
+        <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e5e5;" />
+
+        <section id="screensaver-admin" style="text-align: left;">
+          <h3 style="margin-bottom: 10px;">Descanso de tela</h3>
+          <p style="margin-bottom: 15px; color: #555;">
+            Envie aqui as imagens que serão exibidas no descanso de tela. As fotos serão exibidas em sequência
+            e você pode removê-las a qualquer momento. Utilize nomes simples (sem acentos) ao enviar os arquivos;
+            o título mostrado na TV é gerado automaticamente a partir do nome do arquivo.
+          </p>
+
+          <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 20px;">
+            <input type="file" id="screensaver-upload" accept="image/*" multiple style="flex: 1 1 260px;" />
+            <button class="btn btn-primary" id="screensaver-upload-btn" type="button">Enviar imagens</button>
+            <button class="btn btn-secondary" id="screensaver-refresh-btn" type="button">Atualizar lista</button>
+          </div>
+                    <div id="screensaver-feedback" style="min-height: 24px; color: #555; margin-bottom: 15px;"></div>
+
+          <div id="screensaver-gallery" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px;"></div>
+        </section>
+
       </div>
 
       <button class="btn btn-secondary" onclick="toggleAdmin()" style="margin-top: 20px;">Voltar ao Formulário</button>
@@ -332,10 +367,10 @@
      * DADOS ESTÁTICOS
      * ========================= */
     const vendedoras = [
-      { id: 1, nome: 'Jessica',  inicial: 'J' },
-      { id: 2, nome: 'Júlia',    inicial: 'J' },
-      { id: 3, nome: 'Maju',     inicial: 'M' },
-      { id: 4, nome: 'Micaelly', inicial: 'M' }
+      { id: 1, nome: 'Jéssica',  inicial: 'J', foto: 'Jessica.png' },
+      { id: 2, nome: 'Júlia',    inicial: 'J', foto: 'Julia.png' },
+      { id: 3, nome: 'Maju',     inicial: 'M', foto: 'Maju.png' },
+      { id: 4, nome: 'Micaelly', inicial: 'M', foto: 'Micaelly.png' }
     ];
     
     // TikTok removido da lista
@@ -354,17 +389,15 @@
 
     // Protetor de tela: imagens padrão caso não exista manifesto
     const DEFAULT_SCREENSAVER_IMAGES = [
-      'Google.png',
-      'Instagram.png',
-      'Indicacao.png',
-      'Passei na Porta.png',
-      'Jessica.png',
-      'Julia.png',
-      'Maju.png',
-      'Micaelly.png'
+      { src: 'imagens/screensaver-1.svg', label: 'Bem-vindo(a) à loja' },
+      { src: 'imagens/screensaver-2.svg', label: 'Promoções do dia' },
+      { src: 'imagens/screensaver-3.svg', label: 'Obrigado pela visita' }
     ];
 
-    let screensaverImages = [...DEFAULT_SCREENSAVER_IMAGES];
+    const cloneScreensaverItems = (items = []) =>
+      items.map(item => ({ src: item.src, label: item.label ?? null }));
+
+    let screensaverImages = cloneScreensaverItems(DEFAULT_SCREENSAVER_IMAGES);
     let screensaverDelay = 90000; // 90 segundos
     let screensaverIntervalMs = 8000; // 8 segundos
     let inactivityTimer = null;
@@ -372,6 +405,9 @@
     let isScreensaverActive = false;
     let currentScreensaverIndex = 0;
     let autoRestartTimeout = null;
+        const SCREENSAVER_BUCKET = 'screensaver';
+    const SUPPORTED_IMAGE_REGEX = /\.(png|jpg|jpeg|gif|bmp|svg|webp)$/i;
+
 
     /* =========================
      * INICIALIZAÇÃO
@@ -380,6 +416,21 @@
       showStep(1);
       loadAdminData(); // opcional: já carrega (útil ao abrir admin)
             setupScreensaver();
+            setScreensaverFeedback('');
+
+      const uploadBtn = document.getElementById('screensaver-upload-btn');
+      if (uploadBtn) {
+        uploadBtn.addEventListener('click', handleScreensaverUpload);
+      }
+
+      const refreshBtn = document.getElementById('screensaver-refresh-btn');
+      if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => {
+          setScreensaverFeedback('Atualizando lista...', 'info');
+          loadScreensaverGallery();
+        });
+      }
+
     });
 
     /* =========================
@@ -504,13 +555,176 @@
           intervalMs: screensaverIntervalMs
         });
 
-        screensaverImages = normalized.images.length > 0 ? normalized.images : screensaverImages;
+        if (normalized.images.length > 0) {
+          screensaverImages = cloneScreensaverItems(normalized.images);
+        }
         screensaverDelay = normalized.delayMs;
         screensaverIntervalMs = normalized.intervalMs;
       } catch (error) {
         console.warn('Não foi possível carregar o manifesto do protetor de tela.', error);
       }
     }
+    const humanize = value => value.charAt(0).toUpperCase() + value.slice(1);
+
+    function prettifyFilename(name = '') {
+      const withoutExtension = name.replace(/\.[^.]+$/, '');
+      const cleaned = withoutExtension.replace(/[-_]+/g, ' ').trim();
+      return cleaned ? humanize(cleaned) : 'Imagem do descanso';
+    }
+
+    function sanitizeFileName(name = '') {
+      return name
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9._-]/g, '_');
+    }
+
+    function setScreensaverFeedback(message, type = 'info') {
+      const feedbackEl = document.getElementById('screensaver-feedback');
+      if (!feedbackEl) return;
+
+      const colors = {
+        info: '#555',
+        success: '#0f5132',
+        error: '#842029'
+      };
+
+      feedbackEl.textContent = message;
+      feedbackEl.style.color = colors[type] || colors.info;
+    }
+
+    function renderScreensaverGallery(items) {
+      const container = document.getElementById('screensaver-gallery');
+      if (!container) return;
+
+      if (!items || items.length === 0) {
+        container.innerHTML = '<p style="grid-column: 1 / -1; color: #666;">Nenhuma imagem cadastrada. Utilize o botão acima para enviar novas fotos.</p>';
+        return;
+      }
+
+      container.innerHTML = items.map(item => `
+        <div style="background: #f8f9fa; border-radius: 12px; padding: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 12px;">
+          <img src="${item.url}" alt="${item.label}" style="width: 100%; height: 140px; object-fit: cover; border-radius: 10px;" />
+          <div style="flex: 1;">
+            <strong style="display: block; margin-bottom: 6px;">${item.label}</strong>
+            <small style="display: block; color: #777; word-break: break-word;">${item.name}</small>
+          </div>
+          <button class="btn btn-secondary" type="button" onclick="__removeScreensaverImage('${item.encodedName}')">Remover</button>
+        </div>
+      `).join('');
+    }
+
+    async function loadScreensaverGallery() {
+      try {
+        const { data, error } = await supabase.storage
+          .from(SCREENSAVER_BUCKET)
+          .list('', { limit: 100, offset: 0, sortBy: { column: 'created_at', order: 'desc' } });
+
+        if (error) {
+          if (error.status !== 404) {
+            throw error;
+          }
+          renderScreensaverGallery([]);
+          screensaverImages = cloneScreensaverItems(DEFAULT_SCREENSAVER_IMAGES);
+          return;
+        }
+
+        const files = (data || []).filter(item => !item.name.endsWith('/') && SUPPORTED_IMAGE_REGEX.test(item.name));
+        const galleryItems = files
+          .map(file => {
+            const { data: publicData } = supabase.storage.from(SCREENSAVER_BUCKET).getPublicUrl(file.name);
+            const publicUrl = publicData?.publicUrl;
+            if (!publicUrl) {
+              return null;
+            }
+
+            const label = prettifyFilename(file.name);
+
+            return {
+              name: file.name,
+              encodedName: encodeURIComponent(file.name),
+              url: publicUrl,
+              label
+            };
+          })
+          .filter(Boolean);
+
+        if (galleryItems.length > 0) {
+          screensaverImages = cloneScreensaverItems(galleryItems.map(item => ({ src: item.url, label: item.label })));
+        } else {
+          screensaverImages = cloneScreensaverItems(DEFAULT_SCREENSAVER_IMAGES);
+        }
+
+        renderScreensaverGallery(galleryItems);
+        setScreensaverFeedback('Lista de imagens atualizada.', 'success');
+      } catch (error) {
+        console.error('Erro ao carregar imagens do descanso de tela:', error);
+        renderScreensaverGallery([]);
+        setScreensaverFeedback('Não foi possível carregar as imagens do descanso de tela. Verifique sua conexão ou as permissões do bucket.', 'error');
+        screensaverImages = cloneScreensaverItems(DEFAULT_SCREENSAVER_IMAGES);
+      }
+    }
+
+    async function handleScreensaverUpload() {
+      const input = document.getElementById('screensaver-upload');
+      if (!input || !input.files || input.files.length === 0) {
+        setScreensaverFeedback('Selecione pelo menos uma imagem para enviar.', 'info');
+        return;
+      }
+
+      setScreensaverFeedback('Enviando imagens...', 'info');
+
+      const files = Array.from(input.files).filter(file => SUPPORTED_IMAGE_REGEX.test(file.name));
+      if (files.length === 0) {
+        setScreensaverFeedback('Nenhum arquivo compatível foi selecionado. Utilize imagens nos formatos PNG, JPG, JPEG, GIF, BMP, SVG ou WEBP.', 'error');
+        return;
+      }
+
+      try {
+        for (const file of files) {
+          const sanitizedName = sanitizeFileName(file.name);
+          const uniqueName = `${Date.now()}-${sanitizedName}`;
+          const { error } = await supabase.storage
+            .from(SCREENSAVER_BUCKET)
+            .upload(uniqueName, file, { cacheControl: '3600', upsert: false });
+
+          if (error) {
+            throw error;
+          }
+        }
+
+        setScreensaverFeedback('Imagens enviadas com sucesso!', 'success');
+        input.value = '';
+        await loadScreensaverGallery();
+      } catch (error) {
+        console.error('Erro ao enviar imagens do descanso de tela:', error);
+        setScreensaverFeedback('Não foi possível enviar as imagens. Tente novamente em instantes.', 'error');
+      }
+    }
+
+    async function removeScreensaverImage(encodedName) {
+      const filename = decodeURIComponent(encodedName);
+      if (!filename) {
+        return;
+      }
+
+      try {
+        const { error } = await supabase.storage
+          .from(SCREENSAVER_BUCKET)
+          .remove([filename]);
+
+        if (error) {
+          throw error;
+        }
+
+        setScreensaverFeedback('Imagem removida com sucesso.', 'success');
+        await loadScreensaverGallery();
+      } catch (error) {
+        console.error('Erro ao remover imagem do descanso de tela:', error);
+        setScreensaverFeedback('Não foi possível remover a imagem selecionada.', 'error');
+      }
+    }
+
 
     function setupScreensaver() {
       const screensaverEl = document.getElementById('screensaver');
@@ -530,9 +744,15 @@
       screensaverEl.addEventListener('click', handleUserActivity);
       screensaverEl.addEventListener('touchstart', handleUserActivity, { passive: true });
 
-      loadScreensaverConfig().finally(() => {
-        scheduleInactivityWatcher();
-      });
+      loadScreensaverConfig()
+        .catch(() => {})
+        .finally(() => {
+          loadScreensaverGallery()
+            .catch(() => {})
+            .finally(() => {
+              scheduleInactivityWatcher();
+            });
+        });
     }
 
     function scheduleInactivityWatcher() {
@@ -544,8 +764,17 @@
 
     function updateScreensaverImage() {
       const imageEl = document.getElementById('screensaver-image');
+            const captionEl = document.getElementById('screensaver-caption');
       if (!imageEl || screensaverImages.length === 0) return;
-      imageEl.src = screensaverImages[currentScreensaverIndex % screensaverImages.length];
+
+      const item = screensaverImages[currentScreensaverIndex % screensaverImages.length];
+      imageEl.src = item.src;
+      imageEl.alt = item.label || 'Apresentação da loja';
+
+      if (captionEl) {
+        captionEl.textContent = item.label || '';
+        captionEl.style.display = item.label ? 'block' : 'none';
+      }
     }
 
     function showScreensaver() {
@@ -570,11 +799,17 @@
 
     function hideScreensaver() {
       const screensaverEl = document.getElementById('screensaver');
+            const captionEl = document.getElementById('screensaver-caption');
       if (!screensaverEl) return;
       screensaverEl.classList.remove('visible');
       isScreensaverActive = false;
       clearInterval(screensaverInterval);
       screensaverInterval = null;
+            if (captionEl) {
+        captionEl.textContent = '';
+        captionEl.style.display = 'none';
+      }
+
     }
 
     function showSuccessScreen() {
@@ -592,9 +827,10 @@
   let html = '<h2 class="step-title">Quem te atendeu?</h2>';
   html += '<div class="options-grid">';
   vendedoras.forEach(v => {
+        const foto = v.foto || '';
     html += `
       <div class="option-card" onclick="__selectVendedora(${v.id})">
-        <img src="${v.nome}.png" alt="${v.nome}" style="width:120px;height:120px;border-radius:50%;object-fit:cover;margin-bottom:10px;border:3px solid #FF69B4;">
+        <img src="${foto}" alt="${v.nome}" style="width:120px;height:120px;border-radius:50%;object-fit:cover;margin-bottom:10px;border:3px solid #FF69B4;">
         <div class="option-name">${v.nome}</div>
       </div>
     `;
@@ -733,7 +969,9 @@
         }
       }
     };
-
+    window.__removeScreensaverImage = function(encodedName) {
+      removeScreensaverImage(encodedName);
+    };
     /* =========================
      * SUBMISSÃO (SUPABASE)
      * ========================= */
@@ -842,6 +1080,8 @@
         successScreen.classList.add('hidden');
         adminScreen.classList.remove('hidden');
         loadAdminData();
+                setScreensaverFeedback('Carregando imagens do descanso...', 'info');
+        loadScreensaverGallery();
       } else {
         adminScreen.classList.add('hidden');
         evalScreen.classList.remove('hidden');
