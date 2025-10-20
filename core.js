@@ -33,6 +33,28 @@ export function hasAllRatings(evaluation) {
 
 const MIN_DELAY_MS = 5000;
 const MIN_INTERVAL_MS = 2000;
+function sanitizeImageEntry(item) {
+  if (typeof item === 'string') {
+    const src = item.trim();
+    return src ? { src, label: null } : null;
+  }
+
+  if (item && typeof item === 'object') {
+    const src = typeof item.src === 'string' ? item.src.trim() : '';
+    if (!src) {
+      return null;
+    }
+
+    const label = typeof item.label === 'string' && item.label.trim().length > 0
+      ? item.label.trim()
+      : null;
+
+    return { src, label };
+  }
+
+  return null;
+}
+
 
 function sanitizeImages(list) {
   if (!Array.isArray(list)) {
@@ -40,8 +62,8 @@ function sanitizeImages(list) {
   }
 
   return list
-    .map(item => (typeof item === 'string' ? item.trim() : ''))
-    .filter(item => item.length > 0);
+    .map(sanitizeImageEntry)
+    .filter(Boolean);
 }
 
 function normalizeNumber(value, minimum) {
