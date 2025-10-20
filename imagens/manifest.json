@@ -1,0 +1,14 @@
+{
+  "delaySeconds": 90,
+  "intervalSeconds": 8,
+  "images": [
+    "Google.png",
+    "Instagram.png",
+    "Indicacao.png",
+    "Passei na Porta.png",
+    "Jéssica.png",
+    "Júlia.png",
+    "Maju.png",
+    "Micaelly.png"
+  ]
+}
