@@ -319,6 +319,12 @@
   </script>
 
   <script type="module">
+        import {
+      createEmptyEvaluation,
+      hasAllRatings,
+      ratingFields,
+      normalizeScreensaverConfig
+    } from './core.js';
     // Usa o supabase global criado acima
     const supabase = window.supabase;
 
@@ -344,28 +350,6 @@
      * ESTADO DA AVALIAÇÃO
      * ========================= */
     let currentStep = 1;
-    const ratingFields = [
-      'avaliacaoGeral',
-      'qualidadeServico',
-      'simpatiaEquipe',
-      'tempoResposta',
-      'avaliacaoLoja'
-    ];
-
-    function createEmptyEvaluation() {
-      return {
-        vendedora: null,
-        comoConheceu: null,
-        avaliacaoGeral: null,
-        qualidadeServico: null,
-        simpatiaEquipe: null,
-        tempoResposta: null,
-        avaliacaoLoja: null,
-        comentarios: '',
-        observacoes: ''
-      };
-    }
-
     let evaluationData = createEmptyEvaluation();
 
     // Protetor de tela: imagens padrão caso não exista manifesto
@@ -456,14 +440,9 @@
         nextBtn.onclick = nextStep;
       }
     }
-    function hasAllRatings() {
-      return ratingFields.every(key => typeof evaluationData[key] === 'number' && evaluationData[key] >= 1);
-    }
-
-
     
     function nextStep() {
-            if (currentStep === 3 && !hasAllRatings()) {
+      if (currentStep === 3 && !hasAllRatings(evaluationData)) {
         alert('Por favor, selecione uma quantidade de estrelas para todas as avaliações.');
               
         return;
@@ -519,24 +498,15 @@
         if (!response.ok) return;
         const config = await response.json();
 
-        if (Array.isArray(config.images) && config.images.length > 0) {
-          const normalizedImages = config.images
-            .map(item => typeof item === 'string' ? item.trim() : '')
-            .filter(item => item.length > 0);
-          if (normalizedImages.length > 0) {
-            screensaverImages = normalizedImages;
-          }
-        }
+        const normalized = normalizeScreensaverConfig(config, {
+          images: screensaverImages,
+          delayMs: screensaverDelay,
+          intervalMs: screensaverIntervalMs
+        });
 
-        if (typeof config.delaySeconds === 'number') {
-          const delay = Math.max(config.delaySeconds * 1000, 5000);
-          screensaverDelay = delay;
-        }
-
-        if (typeof config.intervalSeconds === 'number') {
-          const interval = Math.max(config.intervalSeconds * 1000, 2000);
-          screensaverIntervalMs = interval;
-        }
+        screensaverImages = normalized.images.length > 0 ? normalized.images : screensaverImages;
+        screensaverDelay = normalized.delayMs;
+        screensaverIntervalMs = normalized.intervalMs;
       } catch (error) {
         console.warn('Não foi possível carregar o manifesto do protetor de tela.', error);
       }
@@ -652,7 +622,7 @@
 
     function createRatingsStep() {
       let html = '<h2 class="step-title">Avalie nossos serviços</h2>';
-      const helperText = hasAllRatings()
+      const helperText = hasAllRatings(evaluationData)
         ? 'Todas as avaliações estão preenchidas! Você pode avançar para a próxima etapa.'
         : 'Escolha uma quantidade de estrelas para cada item. As perguntas sem nota aparecerão como "Não selecionado".';
 
@@ -724,6 +694,9 @@
     };
 
     window.__setRating = function(category, value) {
+            if (!ratingFields.includes(category)) {
+        return;
+      }
       evaluationData[category] = Number(value);
       const container = document.querySelector(`[data-rating="${category}"]`);
       if (!container) return;
@@ -752,7 +725,7 @@
 
       const ratingsMessage = document.getElementById('ratings-message');
       if (ratingsMessage) {
-        if (hasAllRatings()) {
+        if (hasAllRatings(evaluationData)) {
           ratingsMessage.textContent = 'Todas as avaliações estão preenchidas! Você pode avançar para a próxima etapa.';
           ratingsMessage.classList.remove('error');
         } else {
@@ -765,7 +738,7 @@
      * SUBMISSÃO (SUPABASE)
      * ========================= */
     async function submitEvaluation() {
-      if (!hasAllRatings()) {
+      if (!hasAllRatings(evaluationData)) {
         const ratingsMessage = document.getElementById('ratings-message');
         if (ratingsMessage) {
           ratingsMessage.textContent = 'Você precisa escolher uma quantidade de estrelas em todos os itens antes de continuar.';
