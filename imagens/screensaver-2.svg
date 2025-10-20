@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600">
   <defs>
-    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ff79c6" />
-      <stop offset="100%" stop-color="#8be9fd" />
+    <linearGradient id="gradient2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffb86c" />
+      <stop offset="100%" stop-color="#ff79c6" />
     </linearGradient>
   </defs>
-  <rect width="800" height="600" fill="url(#gradient)" />
-  <text x="50%" y="45%" font-family="'Segoe UI', sans-serif" font-size="64" fill="#ffffff" text-anchor="middle">Bem-vindo(a)!</text>
-  <text x="50%" y="60%" font-family="'Segoe UI', sans-serif" font-size="32" fill="#ffffff" text-anchor="middle">Compartilhe sua experiência conosco</text>
+  <rect width="800" height="600" fill="url(#gradient2)" />
+  <text x="50%" y="40%" font-family="'Segoe UI', sans-serif" font-size="60" fill="#ffffff" text-anchor="middle">Promoções do dia</text>
+  <text x="50%" y="58%" font-family="'Segoe UI', sans-serif" font-size="30" fill="#ffffff" text-anchor="middle">Consulte nossas vendedoras para saber mais</text>
 </svg>
