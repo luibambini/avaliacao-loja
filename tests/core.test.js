@@ -81,7 +81,10 @@ describe('normalizeScreensaverConfig', () => {
 
     const normalized = normalizeScreensaverConfig(null, defaults);
 
-    expect(normalized.images).toEqual(['Default1.png', 'Default2.png']);
+    expect(normalized.images).toEqual([
+      { src: 'Default1.png', label: null },
+      { src: 'Default2.png', label: null }
+    ]);
     expect(normalized.delayMs).toBe(7500);
     expect(normalized.intervalMs).toBe(2500);
   });
