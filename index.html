@@ -94,6 +94,34 @@
     }
     .rating-status.pending{color:#c82333;font-weight:600}
 
+        .rating-helper{
+      background:#f8f9fa;
+      border-left:4px solid #FF69B4;
+      padding:12px 16px;
+      border-radius:12px;
+      margin-bottom:25px;
+      color:#555;
+      font-size:1.05em;
+      transition:all .3s ease;
+    }
+    .rating-helper.error{
+      background:#ffe9ec;
+      border-left-color:#dc3545;
+      color:#c82333;
+    }
+    .rating-section.rating-pending .stars{
+      border:2px dashed #ffc107;
+      border-radius:12px;
+      padding:12px 16px;
+    }
+    .rating-status{
+      margin-top:8px;
+      font-size:1em;
+      color:#555;
+      font-weight:500;
+    }
+    .rating-status.pending{color:#c82333;font-weight:600}
+
     .buttons{display:flex;justify-content:space-between;margin-top:30px;gap:20px}
     .btn{padding:15px 30px;border:none;border-radius:10px;font-size:1.2em;font-weight:bold;cursor:pointer;transition:all .3s ease;min-width:120px}
     .btn-secondary{background:#6c757d;color:#fff}
@@ -111,6 +139,37 @@
     }
     .admin-btn:hover{background:#138496}
     .hidden{display:none}
+        .screensaver{
+      position:fixed;
+      inset:0;
+      background:#000;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      z-index:1000;
+      color:#fff;
+      opacity:0;
+      pointer-events:none;
+      transition:opacity .5s ease;
+      padding:40px;
+      text-align:center;
+    }
+    .screensaver.visible{opacity:1;pointer-events:auto}
+    .screensaver img{
+      max-width:80vw;
+      max-height:70vh;
+      border-radius:20px;
+      object-fit:contain;
+      box-shadow:0 20px 50px rgba(0,0,0,.4);
+    }
+    .screensaver .screensaver-text{
+      margin-top:30px;
+      font-size:1.4em;
+      line-height:1.5;
+      max-width:700px;
+    }
+
     .screensaver{
       position:fixed;
       inset:0;
@@ -185,6 +244,11 @@
 </head>
 <body>
   <button class="admin-btn" onclick="toggleAdmin()">Admin</button>
+  <div id="screensaver" class="screensaver">
+    <img id="screensaver-image" alt="Apresentação da loja" />
+    <div class="screensaver-text">Toque na tela para iniciar uma nova avaliação</div>
+  </div>
+
 
     <div id="screensaver" class="screensaver">
     <img id="screensaver-image" alt="Apresentação da loja" />
@@ -280,14 +344,14 @@
      * ESTADO DA AVALIAÇÃO
      * ========================= */
     let currentStep = 1;
-        const ratingFields = [
+    const ratingFields = [
       'avaliacaoGeral',
       'qualidadeServico',
       'simpatiaEquipe',
       'tempoResposta',
       'avaliacaoLoja'
     ];
-    
+
     function createEmptyEvaluation() {
       return {
         vendedora: null,
@@ -331,6 +395,7 @@
     document.addEventListener('DOMContentLoaded', () => {
       showStep(1);
       loadAdminData(); // opcional: já carrega (útil ao abrir admin)
+            setupScreensaver();
     });
 
     /* =========================
@@ -400,6 +465,7 @@
     function nextStep() {
             if (currentStep === 3 && !hasAllRatings()) {
         alert('Por favor, selecione uma quantidade de estrelas para todas as avaliações.');
+              
         return;
       }
 
@@ -419,6 +485,135 @@
     function previousStep() {
       if (currentStep > 1) showStep(currentStep - 1);
     }
+    const AUTO_RESET_DELAY = 8000; // 8 segundos
+
+    function resetEvaluationData() {
+      evaluationData = createEmptyEvaluation();
+    }
+
+    function resetToStart() {
+      clearTimeout(autoRestartTimeout);
+      const evalScreen    = document.getElementById('evaluation-screen');
+      const successScreen = document.getElementById('success-screen');
+      const adminScreen   = document.getElementById('admin-screen');
+
+      if (adminScreen) adminScreen.classList.add('hidden');
+      if (successScreen) successScreen.classList.add('hidden');
+      if (evalScreen) evalScreen.classList.remove('hidden');
+
+      resetEvaluationData();
+      showStep(1);
+    }
+
+    function scheduleAutoRestart() {
+      clearTimeout(autoRestartTimeout);
+      autoRestartTimeout = setTimeout(() => {
+        hideScreensaver();
+        resetToStart();
+      }, AUTO_RESET_DELAY);
+    }
+
+    async function loadScreensaverConfig() {
+      try {
+        const response = await fetch('imagens/manifest.json', { cache: 'no-store' });
+        if (!response.ok) return;
+        const config = await response.json();
+
+        if (Array.isArray(config.images) && config.images.length > 0) {
+          const normalizedImages = config.images
+            .map(item => typeof item === 'string' ? item.trim() : '')
+            .filter(item => item.length > 0);
+          if (normalizedImages.length > 0) {
+            screensaverImages = normalizedImages;
+          }
+        }
+
+        if (typeof config.delaySeconds === 'number') {
+          const delay = Math.max(config.delaySeconds * 1000, 5000);
+          screensaverDelay = delay;
+        }
+
+        if (typeof config.intervalSeconds === 'number') {
+          const interval = Math.max(config.intervalSeconds * 1000, 2000);
+          screensaverIntervalMs = interval;
+        }
+      } catch (error) {
+        console.warn('Não foi possível carregar o manifesto do protetor de tela.', error);
+      }
+    }
+
+    function setupScreensaver() {
+      const screensaverEl = document.getElementById('screensaver');
+      if (!screensaverEl) return;
+
+      const handleUserActivity = () => {
+        if (isScreensaverActive) {
+          hideScreensaver();
+        }
+        scheduleInactivityWatcher();
+      };
+
+      ['mousemove', 'mousedown', 'touchstart', 'keydown'].forEach(eventName => {
+        document.addEventListener(eventName, handleUserActivity, { passive: true });
+      });
+
+      screensaverEl.addEventListener('click', handleUserActivity);
+      screensaverEl.addEventListener('touchstart', handleUserActivity, { passive: true });
+
+      loadScreensaverConfig().finally(() => {
+        scheduleInactivityWatcher();
+      });
+    }
+
+    function scheduleInactivityWatcher() {
+      clearTimeout(inactivityTimer);
+      inactivityTimer = setTimeout(() => {
+        showScreensaver();
+      }, screensaverDelay);
+    }
+
+    function updateScreensaverImage() {
+      const imageEl = document.getElementById('screensaver-image');
+      if (!imageEl || screensaverImages.length === 0) return;
+      imageEl.src = screensaverImages[currentScreensaverIndex % screensaverImages.length];
+    }
+
+    function showScreensaver() {
+      if (!screensaverImages.length) return;
+      resetToStart();
+      const screensaverEl = document.getElementById('screensaver');
+      const imageEl = document.getElementById('screensaver-image');
+      if (!screensaverEl || !imageEl) return;
+
+      clearInterval(screensaverInterval);
+      currentScreensaverIndex = 0;
+      updateScreensaverImage();
+
+      screensaverEl.classList.add('visible');
+      isScreensaverActive = true;
+
+      screensaverInterval = setInterval(() => {
+        currentScreensaverIndex = (currentScreensaverIndex + 1) % screensaverImages.length;
+        updateScreensaverImage();
+      }, screensaverIntervalMs);
+    }
+
+    function hideScreensaver() {
+      const screensaverEl = document.getElementById('screensaver');
+      if (!screensaverEl) return;
+      screensaverEl.classList.remove('visible');
+      isScreensaverActive = false;
+      clearInterval(screensaverInterval);
+      screensaverInterval = null;
+    }
+
+    function showSuccessScreen() {
+      const evalScreen    = document.getElementById('evaluation-screen');
+      const successScreen = document.getElementById('success-screen');
+      if (evalScreen) evalScreen.classList.add('hidden');
+      if (successScreen) successScreen.classList.remove('hidden');
+    }
+
 
     /* =========================
      * TELAS/ETAPAS (HTML)
@@ -457,6 +652,12 @@
 
     function createRatingsStep() {
       let html = '<h2 class="step-title">Avalie nossos serviços</h2>';
+      const helperText = hasAllRatings()
+        ? 'Todas as avaliações estão preenchidas! Você pode avançar para a próxima etapa.'
+        : 'Escolha uma quantidade de estrelas para cada item. As perguntas sem nota aparecerão como "Não selecionado".';
+
+      html += `<div class="rating-helper" id="ratings-message">${helperText}</div>`;
+
 
       const ratings = [
         { key: 'avaliacaoGeral',    label: 'Avaliação Geral do Atendimento' },
@@ -468,19 +669,26 @@
 
       ratings.forEach(r => {
                 const currentValue = Number(evaluationData[r.key]) || 0;
+                const isPending = currentValue < 1;
         let starsHtml = '';
 
         for (let i = 1; i <= 5; i += 1) {
           const isActive = currentValue >= i ? ' active' : '';
           starsHtml += `<span class="star${isActive}" data-value="${i}" onclick="__setRating('${r.key}', ${i})">★</span>`;
         }
+        const statusText = currentValue >= 1
+          ? `${currentValue} ${currentValue === 1 ? 'estrela selecionada' : 'estrelas selecionadas'}`
+          : 'Não selecionado';
+        const statusClass = isPending ? 'rating-status pending' : 'rating-status';
+        const sectionClass = isPending ? 'rating-section rating-pending' : 'rating-section';
 
         html += `
-          <div class="rating-section">
+          <div class="${sectionClass}">
             <label class="rating-label">${r.label}</label>
             <div class="stars" data-rating="${r.key}">
               ${starsHtml}
             </div>
+             <div class="${statusClass}" data-status="${r.key}">${statusText}</div>
           </div>
         `;
       });
@@ -516,7 +724,7 @@
     };
 
     window.__setRating = function(category, value) {
-      evaluationData[category] = value;
+      evaluationData[category] = Number(value);
       const container = document.querySelector(`[data-rating="${category}"]`);
       if (!container) return;
       const stars = container.querySelectorAll('.star');
@@ -524,6 +732,33 @@
         if (index < value) star.classList.add('active');
         else star.classList.remove('active');
       });
+    
+      const section = container.closest('.rating-section');
+      if (section) {
+        if (value >= 1) section.classList.remove('rating-pending');
+        else section.classList.add('rating-pending');
+      }
+
+      const status = document.querySelector(`[data-status="${category}"]`);
+      if (status) {
+        if (value >= 1) {
+          status.textContent = `${value} ${value === 1 ? 'estrela selecionada' : 'estrelas selecionadas'}`;
+          status.classList.remove('pending');
+        } else {
+          status.textContent = 'Não selecionado';
+          status.classList.add('pending');
+        }
+      }
+
+      const ratingsMessage = document.getElementById('ratings-message');
+      if (ratingsMessage) {
+        if (hasAllRatings()) {
+          ratingsMessage.textContent = 'Todas as avaliações estão preenchidas! Você pode avançar para a próxima etapa.';
+          ratingsMessage.classList.remove('error');
+        } else {
+          ratingsMessage.textContent = 'Ainda faltam avaliações. Os itens pendentes aparecem como "Não selecionado".';
+        }
+      }
     };
 
     /* =========================
@@ -531,14 +766,11 @@
      * ========================= */
     async function submitEvaluation() {
       if (!hasAllRatings()) {
-        alert('Por favor, selecione uma quantidade de estrelas para todas as avaliações.');
-        
-                const ratingsMessage = document.getElementById('ratings-message');
+        const ratingsMessage = document.getElementById('ratings-message');
         if (ratingsMessage) {
           ratingsMessage.textContent = 'Você precisa escolher uma quantidade de estrelas em todos os itens antes de continuar.';
           ratingsMessage.classList.add('error');
         }
-
         return;
       }
 
