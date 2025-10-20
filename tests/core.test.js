@@ -57,14 +57,17 @@ describe('normalizeScreensaverConfig', () => {
     };
 
     const config = {
-      images: [' imagem1.jpg ', '', 'imagem2.png'],
+      images: [' imagem1.jpg ', '', { src: '  destaque.png  ', label: 'Campanha Especial' }],
       delaySeconds: 2, // abaixo do mínimo, deve virar 5000
       intervalSeconds: 1 // abaixo do mínimo, deve virar 2000
     };
 
     const normalized = normalizeScreensaverConfig(config, defaults);
 
-    expect(normalized.images).toEqual(['imagem1.jpg', 'imagem2.png']);
+    expect(normalized.images).toEqual([
+      { src: 'imagem1.jpg', label: null },
+      { src: 'destaque.png', label: 'Campanha Especial' }
+    ]);
     expect(normalized.delayMs).toBe(5000);
     expect(normalized.intervalMs).toBe(2000);
   });
