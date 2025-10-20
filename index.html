@@ -66,6 +66,34 @@
       width:100%;padding:15px;border:2px solid #e9ecef;border-radius:10px;font-size:1.1em;resize:vertical;min-height:100px;font-family:inherit
     }
     .comment-input:focus{outline:none;border-color:#FF69B4}
+        .rating-helper{
+      background:#f8f9fa;
+      border-left:4px solid #FF69B4;
+      padding:12px 16px;
+      border-radius:12px;
+      margin-bottom:25px;
+      color:#555;
+      font-size:1.05em;
+      transition:all .3s ease;
+    }
+    .rating-helper.error{
+      background:#ffe9ec;
+      border-left-color:#dc3545;
+      color:#c82333;
+    }
+    .rating-section.rating-pending .stars{
+      border:2px dashed #ffc107;
+      border-radius:12px;
+      padding:12px 16px;
+    }
+    .rating-status{
+      margin-top:8px;
+      font-size:1em;
+      color:#555;
+      font-weight:500;
+    }
+    .rating-status.pending{color:#c82333;font-weight:600}
+
     .buttons{display:flex;justify-content:space-between;margin-top:30px;gap:20px}
     .btn{padding:15px 30px;border:none;border-radius:10px;font-size:1.2em;font-weight:bold;cursor:pointer;transition:all .3s ease;min-width:120px}
     .btn-secondary{background:#6c757d;color:#fff}
@@ -83,6 +111,36 @@
     }
     .admin-btn:hover{background:#138496}
     .hidden{display:none}
+    .screensaver{
+      position:fixed;
+      inset:0;
+      background:#000;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      z-index:1000;
+      color:#fff;
+      opacity:0;
+      pointer-events:none;
+      transition:opacity .5s ease;
+      padding:40px;
+      text-align:center;
+    }
+    .screensaver.visible{opacity:1;pointer-events:auto}
+    .screensaver img{
+      max-width:80vw;
+      max-height:70vh;
+      border-radius:20px;
+      object-fit:contain;
+      box-shadow:0 20px 50px rgba(0,0,0,.4);
+    }
+    .screensaver .screensaver-text{
+      margin-top:30px;
+      font-size:1.4em;
+      line-height:1.5;
+      max-width:700px;
+    }
 
     /* Responsivo para iPad - forçar 2x2 */
     @media (min-width: 768px) and (max-width: 1024px){
@@ -127,6 +185,11 @@
 </head>
 <body>
   <button class="admin-btn" onclick="toggleAdmin()">Admin</button>
+
+    <div id="screensaver" class="screensaver">
+    <img id="screensaver-image" alt="Apresentação da loja" />
+    <div class="screensaver-text">Toque na tela para iniciar uma nova avaliação</div>
+  </div>
 
   <div class="container">
     <div id="evaluation-screen">
@@ -225,17 +288,42 @@
       'avaliacaoLoja'
     ];
     
-    let evaluationData = {
-      vendedora: null,
-      comoConheceu: null,
-      avaliacaoGeral: null,
-      qualidadeServico: null,
-      simpatiaEquipe: null,
-      tempoResposta: null,
-      avaliacaoLoja: null,
-      comentarios: '',
-      observacoes: ''
-    };
+    function createEmptyEvaluation() {
+      return {
+        vendedora: null,
+        comoConheceu: null,
+        avaliacaoGeral: null,
+        qualidadeServico: null,
+        simpatiaEquipe: null,
+        tempoResposta: null,
+        avaliacaoLoja: null,
+        comentarios: '',
+        observacoes: ''
+      };
+    }
+
+    let evaluationData = createEmptyEvaluation();
+
+    // Protetor de tela: imagens padrão caso não exista manifesto
+    const DEFAULT_SCREENSAVER_IMAGES = [
+      'Google.png',
+      'Instagram.png',
+      'Indicacao.png',
+      'Passei na Porta.png',
+      'Jéssica.png',
+      'Júlia.png',
+      'Maju.png',
+      'Micaelly.png'
+    ];
+
+    let screensaverImages = [...DEFAULT_SCREENSAVER_IMAGES];
+    let screensaverDelay = 90000; // 90 segundos
+    let screensaverIntervalMs = 8000; // 8 segundos
+    let inactivityTimer = null;
+    let screensaverInterval = null;
+    let isScreensaverActive = false;
+    let currentScreensaverIndex = 0;
+    let autoRestartTimeout = null;
 
     /* =========================
      * INICIALIZAÇÃO
@@ -444,6 +532,13 @@
     async function submitEvaluation() {
       if (!hasAllRatings()) {
         alert('Por favor, selecione uma quantidade de estrelas para todas as avaliações.');
+        
+                const ratingsMessage = document.getElementById('ratings-message');
+        if (ratingsMessage) {
+          ratingsMessage.textContent = 'Você precisa escolher uma quantidade de estrelas em todos os itens antes de continuar.';
+          ratingsMessage.classList.add('error');
+        }
+
         return;
       }
 
@@ -468,26 +563,11 @@
       }
 
       // Sucesso
-      const evalScreen    = document.getElementById('evaluation-screen');
-      const successScreen = document.getElementById('success-screen');
-      if (evalScreen) evalScreen.classList.add('hidden');
-      if (successScreen) successScreen.classList.remove('hidden');
-
-      resetEvaluation();
-    }
-
-    function resetEvaluation() {
-      evaluationData = {
-        vendedora: null,
-        comoConheceu: null,
-        avaliacaoGeral: null,
-        qualidadeServico: null,
-        simpatiaEquipe: null,
-        tempoResposta: null,
-        avaliacaoLoja: null,
-        comentarios: '',
-        observacoes: ''
-      };
+      showSuccessScreen();
+      resetEvaluationData();
+      showStep(1);
+      scheduleAutoRestart();
+      scheduleInactivityWatcher();
     }
 
     /* =========================
@@ -561,14 +641,16 @@
         adminScreen.classList.add('hidden');
         evalScreen.classList.remove('hidden');
       }
+      
+      hideScreensaver();
+      scheduleInactivityWatcher();
+
     }
 
     function newEvaluation() {
-      const successScreen = document.getElementById('success-screen');
-      const evalScreen    = document.getElementById('evaluation-screen');
-      if (successScreen) successScreen.classList.add('hidden');
-      if (evalScreen) evalScreen.classList.remove('hidden');
-      showStep(1);
+      hideScreensaver();
+      resetToStart();
+      scheduleInactivityWatcher();
     }
 
     // expõe funções usadas em atributos onclick do HTML
