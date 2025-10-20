@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600">
+  <defs>
+    <linearGradient id="gradient3" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#50fa7b" />
+      <stop offset="100%" stop-color="#6272a4" />
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="url(#gradient3)" />
+  <text x="50%" y="45%" font-family="'Segoe UI', sans-serif" font-size="56" fill="#ffffff" text-anchor="middle">Obrigado pela visita</text>
+  <text x="50%" y="62%" font-family="'Segoe UI', sans-serif" font-size="30" fill="#ffffff" text-anchor="middle">Sua avaliação nos ajuda a evoluir sempre</text>
+</svg>
