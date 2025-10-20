@@ -2,13 +2,8 @@
   "delaySeconds": 90,
   "intervalSeconds": 8,
   "images": [
-    "Google.png",
-    "Instagram.png",
-    "Indicacao.png",
-    "Passei na Porta.png",
-    "Jessica.png",
-    "Julia.png",
-    "Maju.png",
-    "Micaelly.png"
+    { "src": "imagens/screensaver-1.svg", "label": "Bem-vindo(a) à loja" },
+    { "src": "imagens/screensaver-2.svg", "label": "Promoções do dia" },
+    { "src": "imagens/screensaver-3.svg", "label": "Obrigado pela visita" }
   ]
 }
